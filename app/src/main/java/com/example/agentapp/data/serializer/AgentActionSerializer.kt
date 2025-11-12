@@ -34,8 +34,16 @@ object AgentActionSerializer : KSerializer<AgentAction> {
             put("data", when (value.event) {
                 InstructionEvent.NAVIGATION ->
                     Json.encodeToJsonElement(EventData.Navigation.serializer(), value.data as EventData.Navigation)
-//                InstructionEvent.EDIT ->
-//                    Json.encodeToJsonElement(EventData.Edit.serializer(), value.data as EventData.Edit)
+                InstructionEvent.ADD_NOTE ->
+                    Json.encodeToJsonElement(EventData.AddNote.serializer(), value.data as EventData.AddNote)
+                InstructionEvent.UPDATE_NOTE ->
+                    Json.encodeToJsonElement(EventData.UpdateNote.serializer(), value.data as EventData.UpdateNote)
+                InstructionEvent.DELETE_NOTE ->
+                    Json.encodeToJsonElement(EventData.DeleteNote.serializer(), value.data as EventData.DeleteNote)
+                InstructionEvent.UPDATE_FIELD ->
+                    Json.encodeToJsonElement(EventData.UpdateField.serializer(), value.data as EventData.UpdateField)
+                InstructionEvent.VIEW ->
+                    Json.encodeToJsonElement(EventData.View.serializer(), value.data as EventData.View)
             })
         }
 
@@ -54,8 +62,13 @@ object AgentActionSerializer : KSerializer<AgentAction> {
         val data : EventData = when (event) {
             InstructionEvent.NAVIGATION ->
                 Json.decodeFromJsonElement(EventData.Navigation.serializer(), dataElement)
-//            InstructionEvent.EDIT ->
-//                Json.decodeFromJsonElement(EventData.Edit.serializer(), dataElement)
+            InstructionEvent.ADD_NOTE ->
+                Json.decodeFromJsonElement(EventData.AddNote.serializer(), dataElement)
+            InstructionEvent.UPDATE_NOTE ->
+                Json.decodeFromJsonElement(EventData.UpdateNote.serializer(), dataElement)
+            InstructionEvent.DELETE_NOTE -> Json.decodeFromJsonElement(EventData.DeleteNote.serializer(), dataElement)
+            InstructionEvent.UPDATE_FIELD -> Json.decodeFromJsonElement(EventData.UpdateField.serializer(), dataElement)
+            InstructionEvent.VIEW -> Json.decodeFromJsonElement(EventData.View.serializer(), dataElement)
         }
 
         return AgentAction(event, data)
