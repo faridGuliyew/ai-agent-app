@@ -136,13 +136,14 @@ fun AIDialog(
                 FilledIconButton(
                     onClick = {
                         if (input.isBlank()) return@FilledIconButton
+                        val command = input
+                        input = ""
 
-                        messages = messages + Message(input, true)
+                        messages = messages + Message(command, true)
                         scope.launch {
                             isLoading = true
-                            messages += Message(onMessageSent(input), false)
+                            messages += Message(onMessageSent(command), false)
                             isLoading = false
-                            input = ""
                         }
                     },
                     colors = IconButtonDefaults.filledIconButtonColors(

@@ -1,6 +1,6 @@
 package com.example.agentapp.utils
 
-class FeedbackChannel<T : Any, Out : Any> {
+class InstructionChannel<T : Any, Out : Any> {
     val observers = mutableMapOf<String, suspend (T) -> Out?>()
 
     suspend fun send(data: T): Out? {

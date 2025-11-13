@@ -16,22 +16,18 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.agentapp.presentation.AppViewModel
-import com.example.agentapp.presentation.ExploreScreen
-import com.example.agentapp.presentation.HomeScreen
-import com.example.agentapp.presentation.ProfileScreen
+import com.example.agentapp.presentation.screens.explore.ExploreScreen
+import com.example.agentapp.presentation.screens.home.HomeScreen
+import com.example.agentapp.presentation.screens.profile.ProfileScreen
 import com.example.agentapp.presentation.agent.AgentWidget
-import kotlinx.coroutines.delay
-import kotlin.time.Duration.Companion.seconds
 
 @Composable
 fun AppNavigation(
@@ -78,15 +74,17 @@ fun AppNavigation(
                 navController = navController,
                 startDestination = Routes.HOME,
                 enterTransition = {
-                    slideInHorizontally { -it } + fadeIn()
+//                    slideInHorizontally { -it } +
+                            fadeIn()
                 },
                 exitTransition = {
-                    slideOutHorizontally { -it } + fadeOut()
+//                    slideOutHorizontally { -it } +
+                            fadeOut()
                 }
             ) {
-                composable(Routes.HOME) { HomeScreen(viewModel = appViewModel) }
-                composable(Routes.EXPLORE) { ExploreScreen(viewModel = appViewModel) }
-                composable(Routes.PROFILE) { ProfileScreen(viewModel = appViewModel) }
+                composable(Routes.HOME) { HomeScreen() }
+                composable(Routes.EXPLORE) { ExploreScreen() }
+                composable(Routes.PROFILE) { ProfileScreen() }
             }
         }
 

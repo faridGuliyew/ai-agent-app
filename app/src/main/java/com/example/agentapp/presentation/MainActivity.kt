@@ -1,6 +1,7 @@
 package com.example.agentapp.presentation
 
 import android.os.Bundle
+import android.util.Log.e
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -11,12 +12,12 @@ import androidx.navigation.compose.rememberNavController
 import com.example.agentapp.domain.model.agent.EventData
 import com.example.agentapp.domain.model.agent.InstructionEvent
 import com.example.agentapp.domain.model.agent.InstructionModel
+import com.example.agentapp.domain.model.agent.supportedRoutes
 import com.example.agentapp.domain.repository.AgentRepository
 import com.example.agentapp.presentation.navigation.AppNavigation
 import com.example.agentapp.presentation.navigation.navigateAndClearStack
 import com.example.agentapp.presentation.theme.AgentAppTheme
-import com.example.agentapp.utils.FeedbackChannel
-import com.example.agentapp.utils.fieldIdToRoute
+import com.example.agentapp.utils.InstructionChannel
 import kotlinx.coroutines.delay
 import org.koin.android.ext.android.inject
 
@@ -26,7 +27,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         val agentRepository: AgentRepository by inject()
-        val feedbackChannel: FeedbackChannel<EventData, String> by inject()
+        val instructionChannel: InstructionChannel<EventData, String> by inject()
 
         setContent {
             val navController = rememberNavController()
@@ -41,13 +42,10 @@ class MainActivity : ComponentActivity() {
                     onAIInput = {
                         val instruction = agentRepository.resolveInput(it)
                             .onFailure { println("Failed: ${it.message}") }.getOrNull()
-                            ?: return@AppNavigation "Error occurred."
+                            ?: return@AppNavigation "Fatal error occurred."
 
-                        instruction.handle(
-                            navController,
-                            appViewModel,
-                            feedbackChannel = feedbackChannel
-                        ).joinToString("") { "- $it\n" }.trim()
+                        instruction.handle(navController, instructionChannel)
+                            .joinToString("") { "- $it\n" }.trim()
                     }
                 )
             }
@@ -57,9 +55,10 @@ class MainActivity : ComponentActivity() {
 
 suspend fun InstructionModel.handle(
     navController: NavHostController,
-    appViewModel: AppViewModel,
-    feedbackChannel: FeedbackChannel<EventData, String>
+    instructionChannel: InstructionChannel<EventData, String>
 ): List<String> {
+    if (actions.isEmpty()) return listOf(failReason ?: "Unknown error occurred.")
+
     return actions.map {
         delay(50)
         run {
@@ -70,43 +69,28 @@ suspend fun InstructionModel.handle(
                         "Navigation done"
                     }
 
-                    InstructionEvent.ADD_NOTE -> {
-                        val data = it.data as EventData.AddNote
-                        appViewModel.createNote(data.title ?: "Untitled", data.content.orEmpty())
-                        "Added note"
-                    }
-
-                    InstructionEvent.UPDATE_NOTE -> {
-                        val data = it.data as EventData.UpdateNote
-                        appViewModel.updateNoteByTitle(
-                            data.pastTitle,
-                            data.newTitle,
-                            data.newContent,
-                            data.isFavorite
-                        )
-                        "Note is updated"
-                    }
-
-                    InstructionEvent.DELETE_NOTE -> {
-                        val data = it.data as EventData.DeleteNote
-                        appViewModel.deleteNoteByTitle(data.noteTitle)
-                        "Note is deleted"
+                    InstructionEvent.MODIFY_NOTE -> {
+                        val data = it.data as EventData.ModifyNote
+                        // Navigate to first screen that supports given operation
+                        navController.navigateAndClearStack(data.operationType.supportedRoutes.first())
+                        delay(100)
+                        instructionChannel.send(data)
                     }
 
                     InstructionEvent.UPDATE_FIELD -> {
                         val data = it.data as EventData.UpdateField
-                        val targetRoute = fieldIdToRoute(data.fieldId)
-                            ?: return@run "Did not understand field ${data.fieldId}"
-
-                        navController.navigateAndClearStack(targetRoute)
+                        // Navigate to first screen that supports given operation
+                        navController.navigateAndClearStack(data.key.supportedRoutes.first())
                         delay(100)
-                        val feedback = feedbackChannel.send(data)
-                        feedback ?: "Failed to perform ${it.event}"
+                        instructionChannel.send(data)
                     }
 
                     InstructionEvent.VIEW -> {
                         val data = it.data as EventData.View
-                        "I do not understand it yet."
+                        // Navigate to first screen that supports given operation
+                        navController.navigateAndClearStack(data.key.supportedRoutes.first())
+                        delay(100)
+                        instructionChannel.send(data)
                     }
                 }
             }.getOrNull() ?: "Failed to perform ${it.event} event"

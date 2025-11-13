@@ -1,5 +1,8 @@
 package com.example.agentapp.presentation.agent
 
+import android.R.attr.onClick
+import android.R.attr.translationX
+import android.R.attr.translationY
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.core.MutableTransitionState
@@ -29,6 +32,7 @@ import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.agentapp.R
+import com.example.agentapp.utils.draggable
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.seconds
 
@@ -40,10 +44,6 @@ fun AgentWidget(
     var isActive by remember { mutableStateOf(false) }
     val animatedScale by animateFloatAsState(if (!isActive) 1F else 2.5F)
     // Movement states
-    var translationX by remember { mutableFloatStateOf(0F) }
-    val animatedTranslationX by animateFloatAsState(translationX)
-    var translationY by remember { mutableFloatStateOf(0F) }
-    val animatedTranslationY by animateFloatAsState(translationY)
     val screenSize = LocalConfiguration.current.run { screenWidthDp.dp to screenHeightDp.dp }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -56,42 +56,19 @@ fun AgentWidget(
                     this.scaleY = animatedScale
                     this.scaleX = animatedScale
                     this.alpha = if (!isActive) 1F else 1F - animatedScale / 2.5F
-
-                    this.translationX = animatedTranslationX
-                    this.translationY = animatedTranslationY
                 }
-                .clickable(onClick = { isActive = true })
-                .pointerInput(Unit) {
-                    detectDragGestures(
-                        onDragEnd = {
-                            // Snap to closest point
-                            val screenWidth = screenSize.first.toPx()
-                            if (translationX / screenWidth >= 0.5F) {
-                                translationX = screenWidth - size.width
-                            } else {
-                                translationX = 0F
-                            }
-                        }
-                    ) { _, dragAmount ->
-                        translationX = (translationX + dragAmount.x).coerceIn(
-                            0F,
-                            screenSize.first.toPx() - size.width
-                        )
-                        translationY = (translationY + dragAmount.y).coerceIn(
-                            0F,
-                            screenSize.second.toPx() - size.height
-                        )
-                    }
-                },
+                .draggable(screenSize = screenSize)
+                .clickable(onClick = { isActive = true }),
             imageVector = ImageVector.vectorResource(R.drawable.ic_ai),
             contentDescription = null
         )
 
         // AI dialog
         AnimatedVisibility(
-            modifier = Modifier.graphicsLayer {
-                this.translationY = translationY
-            },
+            modifier = Modifier.draggable(
+                screenSize = screenSize,
+                initialY = 500F
+            ),
             visible = isActive,
             enter = scaleIn() + fadeIn(),
             exit = scaleOut() + fadeOut()
@@ -104,7 +81,7 @@ fun AgentWidget(
     }
 }
 
-@Preview (showBackground = true)
+@Preview(showBackground = true)
 @Composable
 private fun AgentWidgetPrev() {
     AgentWidget(

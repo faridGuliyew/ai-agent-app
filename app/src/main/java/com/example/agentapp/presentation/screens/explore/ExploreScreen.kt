@@ -1,10 +1,9 @@
-package com.example.agentapp.presentation
+package com.example.agentapp.presentation.screens.explore
 
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -33,29 +31,27 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.agentapp.presentation.AppViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import java.time.format.DateTimeFormatter
 
 @Composable
-fun ExploreScreen(viewModel: AppViewModel) {
-	var query by remember { mutableStateOf("") }
-	val all = viewModel.discoverNotes
-	val filtered = if (query.isBlank()) all else all.filter {
-		it.title.contains(query, ignoreCase = true) ||
-			it.content.contains(query, ignoreCase = true) ||
-			it.authorUsername.contains(query, ignoreCase = true)
-	}
+fun ExploreScreen() {
+	val viewModel = koinViewModel<ExploreViewModel>()
+	val state by viewModel.state.collectAsStateWithLifecycle()
 
 	Surface(modifier = Modifier.fillMaxSize()) {
 		Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
 			OutlinedTextField(
-				value = query,
-				onValueChange = { query = it },
 				modifier = Modifier.fillMaxWidth(),
+				value = state.query,
+				onValueChange = viewModel::updateQuery,
 				label = { Text("Search notes") }
 			)
 			Spacer(modifier = Modifier.height(12.dp))
 			LazyColumn {
-				itemsIndexed(filtered) { index, note ->
+				itemsIndexed(state.filteredNotes) { index, note ->
 					Surface(
 						tonalElevation = 2.dp,
 						shadowElevation = 1.dp,
@@ -85,7 +81,9 @@ fun ExploreScreen(viewModel: AppViewModel) {
 								animationSpec = tween(200, easing = FastOutSlowInEasing),
 								label = "favScale"
 							)
-							IconButton(onClick = { viewModel.toggleFavorite(note, index, true) }, modifier = Modifier.scale(scale)) {
+							IconButton(onClick = {
+								viewModel.toggleFavorite(note)
+							}, modifier = Modifier.scale(scale)) {
 								Icon(
 									Icons.Default.Favorite,
 									contentDescription = "Favorite",

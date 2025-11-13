@@ -1,4 +1,4 @@
-package com.example.agentapp.presentation
+package com.example.agentapp.presentation.screens.home
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -45,30 +44,21 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.agentapp.presentation.Note
+import org.koin.androidx.compose.koinViewModel
 import java.time.format.DateTimeFormatter
 
 @Composable
-fun HomeScreen(viewModel: AppViewModel) {
-
-	var isCreating by remember { mutableStateOf(false) }
-	var editingNoteId by remember { mutableStateOf<String?>(null) }
-	var titleInput by remember { mutableStateOf("") }
-	var contentInput by remember { mutableStateOf("") }
-	var showNoteDialog by remember { mutableStateOf<Note?>(null) }
+fun HomeScreen() {
+	val viewModel = koinViewModel<HomeViewModel>()
+	val state by viewModel.state.collectAsStateWithLifecycle()
 
 	Scaffold(
 		floatingActionButton = {
-			FloatingActionButton(
-				onClick = {
-					editingNoteId = null
-					titleInput = ""
-					contentInput = ""
-					isCreating = true
-				}
-			) {
+			FloatingActionButton(onClick = viewModel::showNoteEditor) {
 				Icon(Icons.Default.Add, contentDescription = "Add")
 			}
 		}
@@ -76,51 +66,41 @@ fun HomeScreen(viewModel: AppViewModel) {
 		Surface(modifier = Modifier.fillMaxSize().padding(inner)) {
 			Column(modifier = Modifier.fillMaxSize()) {
 				NotesList(
-					notes = viewModel.notes,
-					onOpen = { showNoteDialog = it },
-					onEdit = { note ->
-						editingNoteId = note.id
-						titleInput = note.title
-						contentInput = note.content
-						isCreating = true
-					},
-					onDelete = { viewModel.deleteNote(it.id) },
-					onToggleFavorite = { it, index -> viewModel.toggleFavorite(it, index, false) }
+					notes = state.notes,
+					onOpen = viewModel::viewNote,
+					onEdit = viewModel::showNoteEditor,
+					onDelete = viewModel::deleteNote,
+					onToggleFavorite = viewModel::toggleFavorite
 				)
 			}
 		}
 	}
 
 	AnimatedVisibility(
-		visible = isCreating,
+		visible = state.noteEditorState != null,
 		enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
 		exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
 	) {
-		ComposeNoteEditor(
-			title = titleInput,
-			content = contentInput,
-			onTitleChange = { titleInput = it },
-			onContentChange = { contentInput = it },
-			onCancel = { isCreating = false },
-			onSave = {
-				if (editingNoteId == null) {
-					viewModel.createNote(titleInput.trim(), contentInput.trim())
-				} else {
-					viewModel.updateNote(editingNoteId!!, titleInput.trim(), contentInput.trim(), false)
-				}
-				isCreating = false
-				titleInput = ""
-				contentInput = ""
-				editingNoteId = null
-			}
-		)
+		state.noteEditorState?.let {
+			ComposeNoteEditor(
+				state = it,
+				onTitleChange = { title->
+					viewModel.updateNoteEditorState(it.copy(title = title))
+				},
+				onContentChange = { content->
+					viewModel.updateNoteEditorState(it.copy(content = content))
+				},
+				onCancel = viewModel::dismissNoteEditor,
+				onSave = viewModel::saveNoteEditor
+			)
+		}
 	}
 
-	showNoteDialog?.let { note ->
+	state.viewedNote?.let { note ->
 		AlertDialog(
-			onDismissRequest = { showNoteDialog = null },
+			onDismissRequest = viewModel::dismissViewedNote,
 			confirmButton = {
-				TextButton(onClick = { showNoteDialog = null }) { Text("Close") }
+				TextButton(onClick = viewModel::dismissViewedNote) { Text("Close") }
 			},
 			title = { Text(note.title) },
 			text = {
@@ -136,11 +116,11 @@ fun HomeScreen(viewModel: AppViewModel) {
 
 @Composable
 private fun NotesList(
-	notes: List<Note>,
-	onOpen: (Note) -> Unit,
-	onEdit: (Note) -> Unit,
-	onDelete: (Note) -> Unit,
-	onToggleFavorite: (Note, Int) -> Unit
+    notes: List<Note>,
+    onOpen: (Note) -> Unit,
+    onEdit: (Note) -> Unit,
+    onDelete: (Note) -> Unit,
+    onToggleFavorite: (Note) -> Unit
 ) {
 	if (notes.isEmpty()) {
 		EmptyState()
@@ -167,12 +147,12 @@ private fun NotesList(
 
 @Composable
 private fun NoteRow(
-	note: Note,
-	index: Int,
-	onOpen: (Note) -> Unit,
-	onEdit: (Note) -> Unit,
-	onDelete: (Note) -> Unit,
-	onToggleFavorite: (Note, Int) -> Unit
+    note: Note,
+    index: Int,
+    onOpen: (Note) -> Unit,
+    onEdit: (Note) -> Unit,
+    onDelete: (Note) -> Unit,
+    onToggleFavorite: (Note) -> Unit
 ) {
 	Surface(
 		tonalElevation = 2.dp,
@@ -199,7 +179,7 @@ private fun NoteRow(
 					animationSpec = tween(200, easing = FastOutSlowInEasing),
 					label = "favScale"
 				)
-				IconButton(onClick = { onToggleFavorite(note, index) }, modifier = Modifier.scale(scale)) {
+				IconButton(onClick = { onToggleFavorite(note) }, modifier = Modifier.scale(scale)) {
 					Icon(
 						Icons.Default.Favorite,
 						contentDescription = "Favorite",
@@ -231,8 +211,7 @@ private fun NoteRow(
 
 @Composable
 private fun ComposeNoteEditor(
-	title: String,
-	content: String,
+	state: NoteEditorState,
 	onTitleChange: (String) -> Unit,
 	onContentChange: (String) -> Unit,
 	onCancel: () -> Unit,
@@ -251,14 +230,14 @@ private fun ComposeNoteEditor(
 			Text(text = "Note Editor", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
 			Spacer(modifier = Modifier.height(8.dp))
 			OutlinedTextField(
-				value = title,
+				value = state.title,
 				onValueChange = onTitleChange,
 				modifier = Modifier.fillMaxWidth(),
 				label = { Text("Title") }
 			)
 			Spacer(modifier = Modifier.height(8.dp))
 			OutlinedTextField(
-				value = content,
+				value = state.content,
 				onValueChange = onContentChange,
 				modifier = Modifier.fillMaxWidth().height(120.dp),
 				label = { Text("Content") }

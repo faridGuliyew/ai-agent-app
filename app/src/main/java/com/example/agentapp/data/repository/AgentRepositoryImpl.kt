@@ -14,8 +14,8 @@ import io.ktor.utils.io.readUTF8Line
 class AgentRepositoryImpl(private val client: HttpClient) : AgentRepository {
 
     companion object {
-        const val AGENT_BASE_URL = "http://192.168.0.106:11434/api/generate"
-        const val AGENT_MODEL = "parser"
+        const val AGENT_BASE_URL = "http://host:port/api/generate"
+        const val AGENT_MODEL = "YOUR_MODEL_HERE"
     }
 
     override suspend fun resolveInput(input: String): Result<InstructionModel> {
